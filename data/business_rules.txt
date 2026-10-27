@@ -1,0 +1,11 @@
+# Starter business rules (plain English; input to the Layer 3 policy compiler).
+# From sentinel-build-spec.md; edit freely.
+1. Only the maintenance/operator agent may write PLC registers, and setpoints must stay within the safe range.
+2. Cameras stream to the local gateway only, never to the internet.
+3. Gate release requires matching container + truck + booking.
+4. No agent may subscribe to the wildcard topic `#`.
+5. Reefer temperature changes greater than 10°C in one minute are implausible and must be flagged, not acted on.
+6. Any traffic to the PLC that bypasses the gateway is denied and flagged.
+7. Unknown or revoked identities are denied by default, with no re-evaluation.
+8. Per-agent rate cap: any agent exceeding its publish/action rate is throttled, then quarantined on repeat.
+9. Malformed or out-of-range writes are rejected by condition check, not passed to the device.

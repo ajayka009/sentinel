@@ -1,0 +1,15 @@
+# Device registry: the digest's source of truth (Layer 1 input).
+# TODO (Layer 1, Day 3): list every device, protocol, topic, and identity.
+# The model only enriches and formats this file; anything not listed here
+# is rejected by validation.
+#
+# Example entry shape:
+# devices:
+#   - id: plc-1
+#     site: A
+#     kind: plc
+#     protocol: modbus-tcp
+#     address: 127.0.0.1:5020
+#     registers: {0: run_stop, 1: speed_setpoint}
+#     identity: plc-1
+devices: []
