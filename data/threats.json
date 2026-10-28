@@ -1,0 +1,338 @@
+{
+  "threats": [
+    {
+      "id": "forged-plc-write",
+      "title": "Forged PLC write via flat MQTT topics",
+      "path": [
+        "rogue-agent",
+        "topic:site/#",
+        "edge-gateway",
+        "plc-line1"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "MQTT wildcard '#'/command topic",
+        "edge gateway",
+        "PLC actuator (run/stop, setpoint)"
+      ],
+      "severity": "critical",
+      "preconditions": [
+        "rogue agent holds any valid credential with MQTT publish scope",
+        "flat topic ACLs let a non-operator publisher reach command topics"
+      ],
+      "stopping_policy": "Only the operator agent may write PLC registers, and only via the gateway; unknown or revoked identities denied by default.",
+      "business_rules": [
+        "BR-1",
+        "BR-6",
+        "BR-7"
+      ],
+      "exposure": "plc-unauthenticated-writes"
+    },
+    {
+      "id": "fake-gate-release",
+      "title": "Fake gate release without matching booking",
+      "path": [
+        "rogue-agent",
+        "topic:site/yard/gate/release",
+        "yard-gate"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "gate release topic",
+        "yard gate"
+      ],
+      "severity": "critical",
+      "preconditions": [
+        "rogue agent can publish to site/yard/gate/release",
+        "no container + truck + booking match enforced"
+      ],
+      "stopping_policy": "Gate release requires matching container + truck + booking; mismatches denied and the requester quarantined.",
+      "business_rules": [
+        "BR-3"
+      ],
+      "exposure": "mqtt-flat-acl-command-forgery"
+    },
+    {
+      "id": "gateway-bypass-plc",
+      "title": "Direct-to-PLC write bypassing the gateway",
+      "path": [
+        "rogue-agent",
+        "plc-line1"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "PLC (direct Modbus/TCP)"
+      ],
+      "severity": "critical",
+      "preconditions": [
+        "rogue agent has network reachability to localhost:5020",
+        "PLC accepts unauthenticated Modbus writes"
+      ],
+      "stopping_policy": "Any traffic to the PLC that bypasses the gateway is denied and flagged as an anomaly.",
+      "business_rules": [
+        "BR-6"
+      ],
+      "exposure": "gateway-bypass"
+    },
+    {
+      "id": "forged-yard-container-move",
+      "title": "Forged yard container move dispatching hostler equipment",
+      "path": [
+        "rogue-agent",
+        "topic:site/yard/container/move",
+        "yard-container-moves",
+        "yard-equipment-hostler-1"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "yard container move topic",
+        "yard container moves",
+        "yard equipment hostler 1"
+      ],
+      "severity": "critical",
+      "preconditions": [
+        "rogue agent can publish to site/yard/container/move under flat topic ACLs",
+        "yard-container-moves accepts move commands without operator publisher identity check",
+        "no matching booked container move is enforced before dispatch to yard-equipment-hostler-1"
+      ],
+      "stopping_policy": "Only the operator agent may publish container moves, and only for a matching booked container move; unknown publishers denied by default and quarantined.",
+      "business_rules": [
+        "BR-3",
+        "BR-7"
+      ],
+      "exposure": "wonder-suggested",
+      "source": "wonder"
+    },
+    {
+      "id": "gateway-mediated-plc-write-without-operator",
+      "title": "PLC write through gateway without operator authorization",
+      "path": [
+        "rogue-agent",
+        "edge-gateway",
+        "plc-line1"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "edge gateway",
+        "PLC actuator (run/stop, setpoint)"
+      ],
+      "severity": "critical",
+      "preconditions": [
+        "rogue agent has network reachability to the edge gateway PLC forwarding path",
+        "PLC accepts unauthenticated Modbus writes forwarded via the gateway",
+        "gateway does not enforce that only operator-agent originates PLC writes"
+      ],
+      "stopping_policy": "Only the operator agent may write PLC registers, and only via the gateway; unknown or revoked identities denied by default.",
+      "business_rules": [
+        "BR-1",
+        "BR-6",
+        "BR-7"
+      ],
+      "exposure": "wonder-suggested",
+      "source": "wonder"
+    },
+    {
+      "id": "spoofed-pressure-telemetry-plc-action",
+      "title": "Spoofed pressure telemetry tricking operator into unsafe PLC action",
+      "path": [
+        "rogue-agent",
+        "topic:site/line1/sensors/pressure",
+        "operator-agent",
+        "edge-gateway",
+        "plc-line1"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "line1 pressure sensor topic",
+        "operator agent (misled)",
+        "edge gateway",
+        "PLC actuator (run/stop, setpoint)"
+      ],
+      "severity": "critical",
+      "preconditions": [
+        "rogue agent can publish to site/line1/sensors/pressure under flat topic ACLs",
+        "only sensor-pressure-line1 should publish this topic but publisher identity is not enforced",
+        "operator agent acts on pressure telemetry without publisher identity or plausibility checks"
+      ],
+      "stopping_policy": "Only sensor-pressure-line1 may publish to site/line1/sensors/pressure; telemetry from unknown publishers is denied and flagged, and operator agent must not convert unverified telemetry into PLC writes.",
+      "business_rules": [
+        "BR-1",
+        "BR-7"
+      ],
+      "exposure": "wonder-suggested",
+      "source": "wonder"
+    },
+    {
+      "id": "spoofed-temperature-telemetry-plc-action",
+      "title": "Spoofed temperature telemetry tricking operator into unsafe PLC action",
+      "path": [
+        "rogue-agent",
+        "topic:site/line1/sensors/temperature",
+        "operator-agent",
+        "edge-gateway",
+        "plc-line1"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "line1 temperature sensor topic",
+        "operator agent (misled)",
+        "edge gateway",
+        "PLC actuator (run/stop, setpoint)"
+      ],
+      "severity": "critical",
+      "preconditions": [
+        "rogue agent can publish to site/line1/sensors/temperature under flat topic ACLs",
+        "only sensor-temp-line1 should publish this topic but publisher identity is not enforced",
+        "operator agent acts on temperature telemetry without publisher identity or plausibility checks"
+      ],
+      "stopping_policy": "Only sensor-temp-line1 may publish to site/line1/sensors/temperature; telemetry from unknown publishers is denied and flagged, and operator agent must not convert unverified telemetry into PLC writes.",
+      "business_rules": [
+        "BR-1",
+        "BR-7"
+      ],
+      "exposure": "wonder-suggested",
+      "source": "wonder"
+    },
+    {
+      "id": "wildcard-recon",
+      "title": "Wildcard topic reconnaissance",
+      "path": [
+        "rogue-agent",
+        "topic:site/#"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "all site topics via '#'"
+      ],
+      "severity": "high",
+      "preconditions": [
+        "broker accepts '#' subscriptions from non-gateway identities"
+      ],
+      "stopping_policy": "No agent may subscribe to the wildcard topic '#'; violators quarantined and wildcard disabled for non-gateway identities.",
+      "business_rules": [
+        "BR-4",
+        "BR-8"
+      ],
+      "exposure": "mqtt-wildcard-subscribe"
+    },
+    {
+      "id": "spoofed-reefer-temp",
+      "title": "Spoofed reefer temperature tricking the operator",
+      "path": [
+        "rogue-agent",
+        "topic:site/yard/reefer/<container_id>/temperature",
+        "operator-agent"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "reefer temperature topic",
+        "operator agent (misled)"
+      ],
+      "severity": "high",
+      "preconditions": [
+        "rogue agent can publish to reefer telemetry topics",
+        "operator agent acts on telemetry without plausibility checks"
+      ],
+      "stopping_policy": "Reefer temperature changes greater than 10C in one minute are implausible: flagged, not acted on; publisher scope revoked.",
+      "business_rules": [
+        "BR-5"
+      ],
+      "exposure": "spoofed-remote-telemetry"
+    },
+    {
+      "id": "spoofed-gate-events",
+      "title": "Spoofed gate events masking container moves",
+      "path": [
+        "rogue-agent",
+        "topic:site/yard/gate/event",
+        "operator-agent"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "gate event topic",
+        "operator agent (misled)"
+      ],
+      "severity": "high",
+      "preconditions": [
+        "rogue agent can publish to site/yard/gate/event",
+        "gate events accepted without publisher identity check"
+      ],
+      "stopping_policy": "Gate publishers must hold yard-publish scope; unknown publishers denied by default.",
+      "business_rules": [
+        "BR-7"
+      ],
+      "exposure": "spoofed-remote-telemetry"
+    },
+    {
+      "id": "spoofed-hostler-equipment-status",
+      "title": "Spoofed hostler equipment status misleading the operator",
+      "path": [
+        "rogue-agent",
+        "topic:site/yard/equipment/<id>/status",
+        "operator-agent"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "yard equipment status topic",
+        "operator agent (misled)"
+      ],
+      "severity": "high",
+      "preconditions": [
+        "rogue agent can publish to site/yard/equipment/<id>/status under flat topic ACLs",
+        "only yard-equipment-hostler-1 should publish its own equipment status but publisher identity is not enforced",
+        "operator agent acts on equipment status without publisher identity checks"
+      ],
+      "stopping_policy": "Only yard-equipment-hostler-1 may publish to site/yard/equipment/<id>/status for its own id; unknown publishers denied by default and flagged.",
+      "business_rules": [
+        "BR-7"
+      ],
+      "exposure": "wonder-suggested",
+      "source": "wonder"
+    },
+    {
+      "id": "spoofed-vibration-telemetry-plc-action",
+      "title": "Spoofed vibration telemetry masking a fault or forcing a PLC stop",
+      "path": [
+        "rogue-agent",
+        "topic:site/line1/sensors/vibration",
+        "operator-agent",
+        "edge-gateway",
+        "plc-line1"
+      ],
+      "path_labels": [
+        "rogue agent",
+        "line1 vibration sensor topic",
+        "operator agent (misled)",
+        "edge gateway",
+        "PLC actuator (run/stop, setpoint)"
+      ],
+      "severity": "high",
+      "preconditions": [
+        "rogue agent can publish to site/line1/sensors/vibration under flat topic ACLs",
+        "only sensor-vibration-line1 should publish this topic but publisher identity is not enforced",
+        "operator agent acts on vibration telemetry without publisher identity or plausibility checks"
+      ],
+      "stopping_policy": "Only sensor-vibration-line1 may publish to site/line1/sensors/vibration; telemetry from unknown publishers is denied and flagged, and operator agent must not convert unverified telemetry into PLC writes.",
+      "business_rules": [
+        "BR-1",
+        "BR-7"
+      ],
+      "exposure": "wonder-suggested",
+      "source": "wonder"
+    }
+  ],
+  "meta": {
+    "generated_at": "2026-10-28T17:03:35.893214+00:00",
+    "generator": "sentinel-analyst/1",
+    "model": "muse-wonder-1.0",
+    "graph_sha256": "a7b934959a6f204428bb1ed5da9b729263e1ecbec2add78c87846d8ef51ac78c",
+    "enrichment": {
+      "status": "wonder",
+      "model": "muse-wonder-1.0",
+      "dropped_threat_ids": []
+    },
+    "policy_rerank": {
+      "status": "no-policy-file"
+    }
+  }
+}
