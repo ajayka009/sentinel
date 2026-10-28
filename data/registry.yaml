@@ -1,15 +1,98 @@
-# Device registry: the digest's source of truth (Layer 1 input).
-# TODO (Layer 1, Day 3): list every device, protocol, topic, and identity.
-# The model only enriches and formats this file; anything not listed here
-# is rejected by validation.
-#
-# Example entry shape:
-# devices:
-#   - id: plc-1
-#     site: A
-#     kind: plc
-#     protocol: modbus-tcp
-#     address: 127.0.0.1:5020
-#     registers: {0: run_stop, 1: speed_setpoint}
-#     identity: plc-1
-devices: []
+# Sentinel device registry — the digest's source of truth (Day 3 input).
+# Copy into sentinel/data/registry.yaml. Everything below is synthetic demo
+# data — no real credentials, employer data, or personal data.
+# Registry-first rule: the digest must never invent a device not listed here.
+# If Prompt 1 actually built different device IDs or topics than the spec,
+# edit this file to match the real build BEFORE running Prompt 2.
+
+sites:
+  - name: site-a-plant-line
+    zone: plant-lan
+    trust_boundary: site-a-lan
+    devices:
+      - id: plc-line1
+        type: plc
+        protocol: modbus-tcp
+        address: localhost:5020
+        registers:
+          run_stop: holding-register (coil-equivalent, run/stop)
+          speed_setpoint: holding-register
+        topics: []
+        identity: device-plc-line1
+        notes: Logs every write; commandable only via the gateway.
+      - id: sensor-temp-line1
+        type: sensor
+        protocol: mqtt
+        topics: [site/line1/sensors/temperature]
+        publish_interval_s: 2
+        identity: device-sensor-temp
+      - id: sensor-vibration-line1
+        type: sensor
+        protocol: mqtt
+        topics: [site/line1/sensors/vibration]
+        publish_interval_s: 2
+        identity: device-sensor-vibration
+      - id: sensor-pressure-line1
+        type: sensor
+        protocol: mqtt
+        topics: [site/line1/sensors/pressure]
+        publish_interval_s: 2
+        identity: device-sensor-pressure
+      - id: camera-line1
+        type: camera
+        protocol: local-frames
+        frames_dir: sim/camera_frames/
+        identity: device-camera-line1
+        notes: Synthetic frames only; SAM 3.1 output joins the graph only
+          if the segmented object matches a registry device.
+      - id: edge-gateway
+        type: gateway
+        protocol: mqtt-and-modbus-bridge
+        topics: [site/#]
+        identity: gateway-main
+        notes: The firewall's home and the choke point — no agent action
+          reaches a device without passing through the enforcement loop.
+  - name: site-b-intermodal-yard
+    zone: remote-yard
+    trust_boundary: constrained-yard-link
+    link: simulated-constrained (configurable jitter + drop rate)
+    devices:
+      - id: reefer-container-1
+        type: reefer
+        protocol: mqtt
+        topics: [site/yard/reefer/<container_id>/temperature]
+        identity: device-reefer-1
+      - id: yard-gate
+        type: gate
+        protocol: mqtt
+        topics: [site/yard/gate/event, site/yard/gate/release]
+        identity: device-yard-gate
+        notes: Gate release is the yard's commandable prize — requires
+          matching container + truck + booking.
+      - id: yard-equipment-hostler-1
+        type: yard-equipment
+        protocol: mqtt
+        topics: [site/yard/equipment/<id>/status]
+        identity: device-hostler-1
+      - id: yard-container-moves
+        type: container-tracking
+        protocol: mqtt
+        topics: [site/yard/container/move]
+        identity: device-container-tracker
+
+agents:
+  - id: operator-agent
+    role: operator
+    scope: [read-sensors, plc-write-in-range, gate-release-with-booking]
+    identity: agent-operator
+  - id: rogue-agent
+    role: rogue
+    zone: external/untrusted
+    trust_boundary: outside-plant-lan
+    scope: []
+    enabled_by_default: false
+    identity: agent-rogue
+    notes: Separate process/file sim/rogue.py, own MQTT client ID and
+      credential, OFF by default; scripted attack sequence only.
+
+trust_boundaries: [site-a-lan, constrained-yard-link, gateway, cloud, external/untrusted]

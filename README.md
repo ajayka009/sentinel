@@ -7,7 +7,9 @@ enforceable policy, and blocks, quarantines, and revokes rogue agents live.
 
 > Traditional firewalls inspect packets; Sentinel inspects intent.
 
-Status: Day 2 — sim world. Build order and acceptance criteria live in
+Status: Day 3 — digest complete (`data/graph.json` generated via
+muse-spark-1.3 + validation; `python3 -m sentinel.digest --offline` rebuilds
+it without API calls). Build order and acceptance criteria live in
 [sentinel-build-spec.md](sentinel-build-spec.md).
 
 ## Layout

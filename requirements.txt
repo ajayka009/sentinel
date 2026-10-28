@@ -3,3 +3,4 @@ pymodbus
 streamlit
 openai
 python-dotenv
+pyyaml

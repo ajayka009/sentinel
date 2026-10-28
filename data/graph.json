@@ -1,0 +1,478 @@
+{
+  "trust_boundaries": [
+    "site-a-lan",
+    "constrained-yard-link",
+    "gateway",
+    "cloud",
+    "external/untrusted"
+  ],
+  "nodes": [
+    {
+      "id": "plc-line1",
+      "kind": "device",
+      "type": "plc",
+      "site": "site-a-plant-line",
+      "zone": "plant-lan",
+      "trust_boundary": "site-a-lan",
+      "protocol": "modbus-tcp",
+      "topics": [],
+      "identity": "device-plc-line1",
+      "address": "localhost:5020",
+      "notes": "Logs every write; commandable only via the gateway.",
+      "registers": {
+        "run_stop": {
+          "address": 0,
+          "kind": "holding-register"
+        },
+        "speed_setpoint": {
+          "address": 1,
+          "kind": "holding-register"
+        },
+        "speed_max_rpm": 3000
+      },
+      "description": "Modbus-TCP PLC in site-a-plant-line that logs every write and is commandable only via the gateway."
+    },
+    {
+      "id": "sensor-temp-line1",
+      "kind": "device",
+      "type": "sensor",
+      "site": "site-a-plant-line",
+      "zone": "plant-lan",
+      "trust_boundary": "site-a-lan",
+      "protocol": "mqtt",
+      "topics": [
+        "site/line1/sensors/temperature"
+      ],
+      "identity": "device-sensor-temp",
+      "description": "MQTT temperature sensor in site-a-plant-line publishing every 2s to site/line1/sensors/temperature."
+    },
+    {
+      "id": "sensor-vibration-line1",
+      "kind": "device",
+      "type": "sensor",
+      "site": "site-a-plant-line",
+      "zone": "plant-lan",
+      "trust_boundary": "site-a-lan",
+      "protocol": "mqtt",
+      "topics": [
+        "site/line1/sensors/vibration"
+      ],
+      "identity": "device-sensor-vibration",
+      "description": "MQTT vibration sensor in site-a-plant-line publishing every 2s to site/line1/sensors/vibration."
+    },
+    {
+      "id": "sensor-pressure-line1",
+      "kind": "device",
+      "type": "sensor",
+      "site": "site-a-plant-line",
+      "zone": "plant-lan",
+      "trust_boundary": "site-a-lan",
+      "protocol": "mqtt",
+      "topics": [
+        "site/line1/sensors/pressure"
+      ],
+      "identity": "device-sensor-pressure",
+      "description": "MQTT pressure sensor in site-a-plant-line publishing every 2s to site/line1/sensors/pressure."
+    },
+    {
+      "id": "camera-line1",
+      "kind": "device",
+      "type": "camera",
+      "site": "site-a-plant-line",
+      "zone": "plant-lan",
+      "trust_boundary": "site-a-lan",
+      "protocol": "local-frames",
+      "topics": [],
+      "identity": "device-camera-line1",
+      "notes": "Synthetic frames only; SAM 3.1 output joins the graph only if the segmented object matches a registry device.",
+      "frames_dir": "sim/camera_frames/",
+      "sam_objects": [],
+      "description": "Synthetic-frame local camera in site-a-plant-line whose output joins the graph only if matching a registry device."
+    },
+    {
+      "id": "edge-gateway",
+      "kind": "device",
+      "type": "gateway",
+      "site": "site-a-plant-line",
+      "zone": "plant-lan",
+      "trust_boundary": "site-a-lan",
+      "protocol": "mqtt-and-modbus-bridge",
+      "topics": [
+        "site/#"
+      ],
+      "identity": "gateway-main",
+      "notes": "The firewall's home and the choke point \u2014 no agent action reaches a device without passing through the enforcement loop.",
+      "description": "MQTT-and-Modbus bridge in site-a-plant-line that is the firewall choke point for all agent actions to devices."
+    },
+    {
+      "id": "reefer-container-1",
+      "kind": "device",
+      "type": "reefer",
+      "site": "site-b-intermodal-yard",
+      "zone": "remote-yard",
+      "trust_boundary": "constrained-yard-link",
+      "protocol": "mqtt",
+      "topics": [
+        "site/yard/reefer/<container_id>/temperature"
+      ],
+      "identity": "device-reefer-1",
+      "description": "MQTT reefer sensor in site-b-intermodal-yard that publishes temperature to site/yard/reefer/<container_id>/temperature."
+    },
+    {
+      "id": "yard-gate",
+      "kind": "device",
+      "type": "gate",
+      "site": "site-b-intermodal-yard",
+      "zone": "remote-yard",
+      "trust_boundary": "constrained-yard-link",
+      "protocol": "mqtt",
+      "topics": [
+        "site/yard/gate/event",
+        "site/yard/gate/release"
+      ],
+      "identity": "device-yard-gate",
+      "notes": "Gate release is the yard's commandable prize \u2014 requires matching container + truck + booking.",
+      "description": "MQTT gate device in site-b-intermodal-yard publishing events and handling booked release commands."
+    },
+    {
+      "id": "yard-equipment-hostler-1",
+      "kind": "device",
+      "type": "yard-equipment",
+      "site": "site-b-intermodal-yard",
+      "zone": "remote-yard",
+      "trust_boundary": "constrained-yard-link",
+      "protocol": "mqtt",
+      "topics": [
+        "site/yard/equipment/<id>/status"
+      ],
+      "identity": "device-hostler-1",
+      "description": "MQTT yard equipment hostler in site-b-intermodal-yard publishing status to site/yard/equipment/<id>/status."
+    },
+    {
+      "id": "yard-container-moves",
+      "kind": "device",
+      "type": "container-tracking",
+      "site": "site-b-intermodal-yard",
+      "zone": "remote-yard",
+      "trust_boundary": "constrained-yard-link",
+      "protocol": "mqtt",
+      "topics": [
+        "site/yard/container/move"
+      ],
+      "identity": "device-container-tracker",
+      "description": "MQTT container-tracking device in site-b-intermodal-yard publishing to site/yard/container/move."
+    },
+    {
+      "id": "operator-agent",
+      "kind": "agent",
+      "role": "operator",
+      "zone": "",
+      "trust_boundary": "",
+      "scope": [
+        "read-sensors",
+        "plc-write-in-range",
+        "gate-release-with-booking"
+      ],
+      "identity": "agent-operator",
+      "enabled_by_default": true,
+      "description": "Authorized operator agent scoped to read sensors, write PLC in range, and release gate with booking."
+    },
+    {
+      "id": "rogue-agent",
+      "kind": "agent",
+      "role": "rogue",
+      "zone": "external/untrusted",
+      "trust_boundary": "outside-plant-lan",
+      "scope": [],
+      "identity": "agent-rogue",
+      "enabled_by_default": false,
+      "description": "Disabled-by-default external untrusted agent with no scope used only for scripted attack sequences."
+    },
+    {
+      "id": "topic:site/#",
+      "kind": "topic",
+      "pattern": "site/#",
+      "description": "Wildcard MQTT topic bridged by the edge-gateway covering all site traffic."
+    },
+    {
+      "id": "topic:site/line1/sensors/pressure",
+      "kind": "topic",
+      "pattern": "site/line1/sensors/pressure",
+      "description": "MQTT topic carrying pressure readings from sensor-pressure-line1 to the gateway."
+    },
+    {
+      "id": "topic:site/line1/sensors/temperature",
+      "kind": "topic",
+      "pattern": "site/line1/sensors/temperature",
+      "description": "MQTT topic carrying temperature readings from sensor-temp-line1 to the gateway."
+    },
+    {
+      "id": "topic:site/line1/sensors/vibration",
+      "kind": "topic",
+      "pattern": "site/line1/sensors/vibration",
+      "description": "MQTT topic carrying vibration readings from sensor-vibration-line1 to the gateway."
+    },
+    {
+      "id": "topic:site/yard/container/move",
+      "kind": "topic",
+      "pattern": "site/yard/container/move",
+      "description": "MQTT topic carrying container-tracking moves from yard-container-moves to the gateway."
+    },
+    {
+      "id": "topic:site/yard/equipment/<id>/status",
+      "kind": "topic",
+      "pattern": "site/yard/equipment/<id>/status",
+      "description": "MQTT topic carrying hostler status from yard-equipment-hostler-1 to the gateway."
+    },
+    {
+      "id": "topic:site/yard/gate/event",
+      "kind": "topic",
+      "pattern": "site/yard/gate/event",
+      "description": "MQTT topic carrying gate events from yard-gate to the gateway."
+    },
+    {
+      "id": "topic:site/yard/gate/release",
+      "kind": "topic",
+      "pattern": "site/yard/gate/release",
+      "description": "MQTT topic for commandable gate release requiring matching container plus truck plus booking."
+    },
+    {
+      "id": "topic:site/yard/reefer/<container_id>/temperature",
+      "kind": "topic",
+      "pattern": "site/yard/reefer/<container_id>/temperature",
+      "description": "MQTT topic carrying reefer temperature from reefer-container-1 to the gateway."
+    }
+  ],
+  "edges": [
+    {
+      "from": "sensor-pressure-line1",
+      "to": "topic:site/line1/sensors/pressure",
+      "protocol": "mqtt",
+      "description": "sensor-pressure-line1 publishes site/line1/sensors/pressure"
+    },
+    {
+      "from": "topic:site/line1/sensors/pressure",
+      "to": "edge-gateway",
+      "protocol": "mqtt",
+      "description": "gateway bridges site/line1/sensors/pressure"
+    },
+    {
+      "from": "sensor-temp-line1",
+      "to": "topic:site/line1/sensors/temperature",
+      "protocol": "mqtt",
+      "description": "sensor-temp-line1 publishes site/line1/sensors/temperature"
+    },
+    {
+      "from": "topic:site/line1/sensors/temperature",
+      "to": "edge-gateway",
+      "protocol": "mqtt",
+      "description": "gateway bridges site/line1/sensors/temperature"
+    },
+    {
+      "from": "sensor-vibration-line1",
+      "to": "topic:site/line1/sensors/vibration",
+      "protocol": "mqtt",
+      "description": "sensor-vibration-line1 publishes site/line1/sensors/vibration"
+    },
+    {
+      "from": "topic:site/line1/sensors/vibration",
+      "to": "edge-gateway",
+      "protocol": "mqtt",
+      "description": "gateway bridges site/line1/sensors/vibration"
+    },
+    {
+      "from": "yard-container-moves",
+      "to": "topic:site/yard/container/move",
+      "protocol": "mqtt",
+      "description": "yard-container-moves publishes site/yard/container/move"
+    },
+    {
+      "from": "topic:site/yard/container/move",
+      "to": "edge-gateway",
+      "protocol": "mqtt",
+      "description": "gateway bridges site/yard/container/move"
+    },
+    {
+      "from": "yard-equipment-hostler-1",
+      "to": "topic:site/yard/equipment/<id>/status",
+      "protocol": "mqtt",
+      "description": "yard-equipment-hostler-1 publishes site/yard/equipment/<id>/status"
+    },
+    {
+      "from": "topic:site/yard/equipment/<id>/status",
+      "to": "edge-gateway",
+      "protocol": "mqtt",
+      "description": "gateway bridges site/yard/equipment/<id>/status"
+    },
+    {
+      "from": "yard-gate",
+      "to": "topic:site/yard/gate/event",
+      "protocol": "mqtt",
+      "description": "yard-gate publishes site/yard/gate/event"
+    },
+    {
+      "from": "topic:site/yard/gate/event",
+      "to": "edge-gateway",
+      "protocol": "mqtt",
+      "description": "gateway bridges site/yard/gate/event"
+    },
+    {
+      "from": "yard-gate",
+      "to": "topic:site/yard/gate/release",
+      "protocol": "mqtt",
+      "description": "yard-gate publishes site/yard/gate/release"
+    },
+    {
+      "from": "topic:site/yard/gate/release",
+      "to": "edge-gateway",
+      "protocol": "mqtt",
+      "description": "gateway bridges site/yard/gate/release"
+    },
+    {
+      "from": "reefer-container-1",
+      "to": "topic:site/yard/reefer/<container_id>/temperature",
+      "protocol": "mqtt",
+      "description": "reefer-container-1 publishes site/yard/reefer/<container_id>/temperature"
+    },
+    {
+      "from": "topic:site/yard/reefer/<container_id>/temperature",
+      "to": "edge-gateway",
+      "protocol": "mqtt",
+      "description": "gateway bridges site/yard/reefer/<container_id>/temperature"
+    },
+    {
+      "from": "edge-gateway",
+      "to": "plc-line1",
+      "protocol": "modbus-tcp",
+      "description": "gateway relays authorized PLC writes (HR0 run/stop, HR1 setpoint)"
+    },
+    {
+      "from": "operator-agent",
+      "to": "edge-gateway",
+      "protocol": "mqtt",
+      "description": "operator subscribes to sensor/gate topics, issues in-policy commands"
+    }
+  ],
+  "identities": [
+    {
+      "id": "device-plc-line1",
+      "owner": "plc-line1",
+      "owner_kind": "device",
+      "role": "plc"
+    },
+    {
+      "id": "device-sensor-temp",
+      "owner": "sensor-temp-line1",
+      "owner_kind": "device",
+      "role": "sensor"
+    },
+    {
+      "id": "device-sensor-vibration",
+      "owner": "sensor-vibration-line1",
+      "owner_kind": "device",
+      "role": "sensor"
+    },
+    {
+      "id": "device-sensor-pressure",
+      "owner": "sensor-pressure-line1",
+      "owner_kind": "device",
+      "role": "sensor"
+    },
+    {
+      "id": "device-camera-line1",
+      "owner": "camera-line1",
+      "owner_kind": "device",
+      "role": "camera"
+    },
+    {
+      "id": "gateway-main",
+      "owner": "edge-gateway",
+      "owner_kind": "device",
+      "role": "gateway"
+    },
+    {
+      "id": "device-reefer-1",
+      "owner": "reefer-container-1",
+      "owner_kind": "device",
+      "role": "reefer"
+    },
+    {
+      "id": "device-yard-gate",
+      "owner": "yard-gate",
+      "owner_kind": "device",
+      "role": "gate"
+    },
+    {
+      "id": "device-hostler-1",
+      "owner": "yard-equipment-hostler-1",
+      "owner_kind": "device",
+      "role": "yard-equipment"
+    },
+    {
+      "id": "device-container-tracker",
+      "owner": "yard-container-moves",
+      "owner_kind": "device",
+      "role": "container-tracking"
+    },
+    {
+      "id": "agent-operator",
+      "owner": "operator-agent",
+      "owner_kind": "agent",
+      "role": "operator",
+      "scope": [
+        "read-sensors",
+        "plc-write-in-range",
+        "gate-release-with-booking"
+      ]
+    },
+    {
+      "id": "agent-rogue",
+      "owner": "rogue-agent",
+      "owner_kind": "agent",
+      "role": "rogue",
+      "scope": []
+    }
+  ],
+  "meta": {
+    "generated_at": "2026-10-28T01:34:32.949114+00:00",
+    "generator": "sentinel-digest/1",
+    "model": "muse-spark-1.3",
+    "registry_sha256": "b2c3b4b7e5cd4bf1d65a9b536aff9f40b65c9d6aca66ce0ce6dcdaf06ee49256",
+    "sam_status": "no_frames",
+    "enrichment": {
+      "status": "spark",
+      "model": "muse-spark-1.3",
+      "dropped_node_ids": [
+        "edge-gateway->plc-line1",
+        "operator-agent->edge-gateway",
+        "reefer-container-1->topic:site/yard/reefer/<container_id>/temperature",
+        "sensor-pressure-line1->topic:site/line1/sensors/pressure",
+        "sensor-temp-line1->topic:site/line1/sensors/temperature",
+        "sensor-vibration-line1->topic:site/line1/sensors/vibration",
+        "topic:site/line1/sensors/pressure->edge-gateway",
+        "topic:site/line1/sensors/temperature->edge-gateway",
+        "topic:site/line1/sensors/vibration->edge-gateway",
+        "topic:site/yard/container/move->edge-gateway",
+        "topic:site/yard/equipment/<id>/status->edge-gateway",
+        "topic:site/yard/gate/event->edge-gateway",
+        "topic:site/yard/gate/release->edge-gateway",
+        "topic:site/yard/reefer/<container_id>/temperature->edge-gateway",
+        "yard-container-moves->topic:site/yard/container/move",
+        "yard-equipment-hostler-1->topic:site/yard/equipment/<id>/status",
+        "yard-gate->topic:site/yard/gate/event",
+        "yard-gate->topic:site/yard/gate/release"
+      ]
+    },
+    "plc_registers": {
+      "run_stop": {
+        "address": 0,
+        "kind": "holding-register"
+      },
+      "speed_setpoint": {
+        "address": 1,
+        "kind": "holding-register"
+      },
+      "speed_max_rpm": 3000
+    }
+  }
+}
