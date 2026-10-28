@@ -8,7 +8,7 @@ Offline, stdlib only. Run from the repo root:
 import json
 import unittest
 
-from sim import agents, sensors, yard
+from sim import agents, rogue, sensors, yard
 
 
 class FakeMsg:
@@ -53,6 +53,44 @@ class TopicContractTest(unittest.TestCase):
         """Yard's pre-booked arrivals must exist in the operator's registry."""
         expected = {(c, b["truck"]) for c, b in agents.BOOKINGS.items()}
         self.assertEqual(set(yard.BOOKED_ARRIVALS), expected)
+
+    def test_rogue_topics_match_spec(self):
+        """The split rogue module must use the same spec topics."""
+        self.assertEqual(rogue.TOPIC_GATE_RELEASE, "site/yard/gate/release")
+        self.assertEqual(
+            rogue.TOPIC_TEMPERATURE, "site/line1/sensors/temperature")
+        self.assertEqual(
+            rogue.TOPIC_REEFER_TEMPERATURE.format(reefer_id="R-101"),
+            "site/yard/reefer/R-101/temperature",
+        )
+        self.assertEqual(rogue.TOPIC_GATE_RELEASE, agents.TOPIC_GATE_RELEASE)
+        self.assertEqual(rogue.TOPIC_TEMPERATURE, agents.TOPIC_TEMPERATURE)
+
+
+class AgentBoundaryTest(unittest.TestCase):
+    """Operator and rogue are separate modules with separate credentials."""
+
+    def test_split_modules(self):
+        self.assertTrue(hasattr(agents, "OperatorAgent"))
+        self.assertFalse(hasattr(agents, "RogueAgent"))
+        self.assertTrue(hasattr(rogue, "RogueAgent"))
+        self.assertFalse(hasattr(rogue, "OperatorAgent"))
+
+    def test_no_cross_imports(self):
+        self.assertNotIn("agents", dir(rogue))
+        self.assertNotIn("rogue", dir(agents))
+
+    def test_credentials_differ(self):
+        """Each agent issues its own credential; they must never match."""
+        op = agents.OperatorAgent("127.0.0.1", 1883, "127.0.0.1", 5020)
+        rg = rogue.RogueAgent("127.0.0.1", 1883, "127.0.0.1", 5020)
+        try:
+            self.assertNotEqual(op.credential_id, rg.credential_id)
+            self.assertEqual(op.credential["role"], "operator-agent")
+            self.assertEqual(rg.credential["role"], "rogue-agent")
+        finally:
+            op.plc.close()
+            rg.plc.close()
 
 
 class OperatorGateTest(unittest.TestCase):

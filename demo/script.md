@@ -26,6 +26,7 @@ Condensed from sentinel-build-spec.md; the console IS the demo.
 python3 sim/plc.py
 python3 sim/sensors.py
 python3 sim/yard.py --jitter 1 --drop 0.1
-python3 sim/agents.py            # operator; add --rogue for the attack script
+python3 sim/agents.py            # operator
+python3 sim/rogue.py             # rogue attack script (off by default)
 streamlit run console/app.py     # Red team tab fires each attack on demand
 ```

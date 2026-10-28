@@ -101,7 +101,7 @@ Remote publishers over a **simulated constrained link** (add jitter + occasional
 ### Agents (the actors)
 
 - **Operator agent (legitimate).** Reads sensors and telemetry, may command the PLC within policy (e.g., adjust setpoint within safe range) and may request gate releases with matching container + truck + booking.
-- **Rogue agent (compromised).** Same tools, no legitimate business. Its scripted attacks (see Demo script) are the demo's villains.
+- **Rogue agent (compromised).** Same tools, no legitimate business. Its scripted attacks (see Demo script) are the demo's villains. It is a separate process and file (`sim/rogue.py`), running in its own terminal with its own MQTT client ID and its own credential issued separately via `identity.py` — not colocated with the operator, sharing no imports, state, credential objects, or sessions with it. It sits in the untrusted/external zone, outside the plant LAN.
 
 ### Identities (the PKI thread — your signature detail)
 
@@ -113,7 +113,7 @@ Every agent and device gets an identity credential (a simple cert-like JSON toke
 
 - **Model:** `muse-spark-1.3` (structured output) + `sam-3.1` (camera frames).
 - **Inputs:** device registry (hand-written config listing every device, protocol, topic, identity), PLC register map, camera frames.
-- **Output:** `graph.json` — nodes (devices, agents, gateway, topics), edges (data flows, who talks to whom), identities, trust boundaries (site A LAN, yard link, gateway, cloud).
+- **Output:** `graph.json` — nodes (devices, agents, gateway, topics), edges (data flows, who talks to whom), identities, trust boundaries (site A LAN, yard link, gateway, cloud, external/untrusted zone). The rogue agent node must be placed in the external/untrusted zone, outside site-a-lan.
 - **Anti-pattern (from prior experience — do not repeat):** never ask a model to *originate* the inventory from unstructured input, e.g., extracting exact components and connections from legacy diagrams. That approach failed after days of correction: with no ground-truth anchor, the model invents components, drops others, and miswires connections, and each correction round just moves errors around. The registry is the source of truth; the model only enriches and formats it. Any component the model introduces that is not in the registry is rejected by validation. Same rule for SAM output: a segmented object joins the graph only if it matches a known registry device.
 - **Acceptance:** `graph.json` contains every device in the registry plus the camera-segmented objects; re-running digest after adding a device updates the graph. SAM output is visible in the console (boxes/masks over the frame).
 - **Cost note:** run on demand and on environment change, not continuously.
@@ -189,7 +189,8 @@ sentinel/
 │   ├── sensors.py             # Site A MQTT publishers (temp/vibration/pressure)
 │   ├── yard.py                # Site B publishers (reefer/gate/equipment/moves) + link jitter
 │   ├── camera_frames/         # synthetic frames (Muse Image) for SAM
-│   └── agents.py              # operator agent + rogue agent (scripted)
+│   ├── agents.py              # operator agent (legitimate, own process)
+│   └── rogue.py               # rogue agent (scripted attacks, separate process, off by default)
 ├── sentinel/
 │   ├── digest.py              # Layer 1: Spark + SAM → graph.json
 │   ├── analyst.py             # Layer 2: Wonder → threats.json
@@ -231,7 +232,7 @@ Feed these to Muse Code in order. After each one, run the acceptance check befor
 > Scaffold a Python project per the repo layout in this spec. requirements.txt with paho-mqtt, pymodbus, streamlit, openai, python-dotenv. models.py: a Meta Model API client using the OpenAI SDK with base_url https://api.meta.ai/v1 and api_key from env META_API_KEY, with functions chat(model, messages, json_mode) and a retry on 429. identity.py: issue/verify/revoke credential tokens as JSON (id, role, issuer, expiry, scope) stored in memory. Everything else is a stub with a TODO. Verify: `python -c "import sentinel.models"` imports cleanly.
 
 ### Prompt 1 — Sim world
-> Build sim/ per the spec: broker.sh starts eclipse-mosquitto via docker; plc.py is a pymodbus Modbus/TCP server on localhost:5020 with holding registers for run/stop and speed setpoint, logging every write; sensors.py publishes temperature/vibration/pressure to site/line1/sensors/* every 2s with drift and noise; yard.py publishes reefer temps, gate events, equipment status, and container moves to site/yard/* with configurable jitter and drop rate to simulate a constrained link; agents.py has OperatorAgent (reads topics, issues in-policy PLC writes and gate releases) and RogueAgent (scripted attack sequence, off by default). Verify: start broker + plc + sensors + yard, subscribe to site/#, and see all topics flowing.
+> Build sim/ per the spec: broker.sh starts eclipse-mosquitto via docker; plc.py is a pymodbus Modbus/TCP server on localhost:5020 with holding registers for run/stop and speed setpoint, logging every write; sensors.py publishes temperature/vibration/pressure to site/line1/sensors/* every 2s with drift and noise; yard.py publishes reefer temps, gate events, equipment status, and container moves to site/yard/* with configurable jitter and drop rate to simulate a constrained link; agents.py has OperatorAgent only (reads topics, issues in-policy PLC writes and gate releases, own MQTT client ID, own credential issued via identity.py); rogue.py is a separate file and process holding RogueAgent (scripted attack sequence: wildcard # recon, forged PLC write, spoofed reefer telemetry, fake gate release, plus the aligned checks — unknown-device connect, publish flood, out-of-range setpoint), with its own MQTT client ID and its own credential issued separately via identity.py, off by default (running rogue.py starts the attacks). No shared imports, state, credential objects, or sessions between agents.py and rogue.py. Verify: start broker + plc + sensors + yard, run agents.py and rogue.py simultaneously in separate terminals, subscribe to site/#, and see both agents' traffic flowing.
 
 ### Prompt 2 — Digest
 > Build sentinel/digest.py: read data/registry.yaml and the PLC register map, call muse-spark-1.3 with structured output to produce data/graph.json (nodes, edges, identities, trust boundaries). Include SAM 3.1 segmentation of sim/camera_frames/*, attaching detected objects to the matching camera node. Verify: graph.json contains every registry device plus camera objects; adding a device to the registry and re-running updates the graph.
@@ -249,6 +250,8 @@ Feed these to Muse Code in order. After each one, run the acceptance check befor
 > Build console/app.py in Streamlit with tabs — Overview (metrics), Environment (graph + registry), Policies (business rules → machine rules with hit counts), Agents & Identities (credentials, status, revoke button, per-agent history), Red team (buttons firing each scripted attack on demand + pause/resume + reset), Threats (ranked map + stopping policy), Audit log (filterable, exportable). It reads data/graph.json, threats.json, policy.json and tails the audit log; the live feed auto-refreshes. The console must run fully offline from the cached JSON artifacts — no model calls in the console or enforcement path. Verify: a first-time visitor can find total blocks, a device's config, the rule behind a block, and fire an attack and watch it blocked, all within 2 minutes.
 
 ## Demo script (about 3½ minutes, the story judges remember)
+
+Staging: the operator agent runs in its own terminal on the plant LAN; the rogue agent runs as a separate external process (`sim/rogue.py`) in its own terminal from the untrusted zone.
 
 Beat 0 — Calm (30s). Console shows the two sites healthy: line sensors flowing, yard reefers steady, gate events normal, operator agent issuing an in-policy setpoint change (allowed, green).
 
