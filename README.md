@@ -7,10 +7,11 @@ enforceable policy, and blocks, quarantines, and revokes rogue agents live.
 
 > Traditional firewalls inspect packets; Sentinel inspects intent.
 
-Status: Day 4 — analyst complete (`data/threats.json`: 6 seeded
-exposures + 6 Wonder-suggested paths, forged-PLC-write and fake-gate-release
-ranked top; `python3 -m sentinel.analyst --offline` rebuilds it without API
-calls). Build order and acceptance criteria live in
+Status: Day 5 — policy compiler complete (`data/policy.json`: 16
+machine rules covering all 9 starter rules + 10 graph-derived
+infrastructure allows, default-deny catch-all last, 11 Spark-drafted
+advisory proposals; `python3 -m sentinel.policy --offline` rebuilds it
+without API calls). Build order and acceptance criteria live in
 [sentinel-build-spec.md](sentinel-build-spec.md).
 
 ## Layout

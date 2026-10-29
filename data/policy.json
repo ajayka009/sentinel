@@ -1,0 +1,680 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "pol-br1-allow-plc-write",
+      "business_rule": "BR-1",
+      "origin": "business-rule",
+      "subject": "operator-agent",
+      "action": "write",
+      "resource": "plc.*",
+      "conditions": [
+        {
+          "field": "via_gateway",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "field": "value",
+          "op": "gte",
+          "value": 0
+        },
+        {
+          "field": "value",
+          "op": "lte",
+          "value": 1500
+        }
+      ],
+      "effect": "allow",
+      "description": "Operator PLC writes within the safe range (0-1500 RPM) relayed through the gateway."
+    },
+    {
+      "id": "pol-br2-allow-local-stream",
+      "business_rule": "BR-2",
+      "origin": "business-rule",
+      "subject": "camera-line1",
+      "action": "stream",
+      "resource": "camera.frames",
+      "conditions": [
+        {
+          "field": "destination",
+          "op": "eq",
+          "value": "edge-gateway"
+        }
+      ],
+      "effect": "allow",
+      "description": "Camera frames stream to the local gateway."
+    },
+    {
+      "id": "pol-br2-deny-internet",
+      "business_rule": "BR-2",
+      "origin": "business-rule",
+      "subject": "camera-line1",
+      "action": "stream",
+      "resource": "camera.frames",
+      "conditions": [
+        {
+          "field": "destination",
+          "op": "eq",
+          "value": "internet"
+        }
+      ],
+      "effect": "deny",
+      "description": "Camera streams to the internet are denied."
+    },
+    {
+      "id": "pol-br3-allow-booked-release",
+      "business_rule": "BR-3",
+      "origin": "business-rule",
+      "subject": "operator-agent",
+      "action": "publish",
+      "resource": "topic:site/yard/gate/release",
+      "conditions": [
+        {
+          "field": "booking_match",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "effect": "allow",
+      "description": "Booked gate releases (container + truck + booking match)."
+    },
+    {
+      "id": "pol-br3-quarantine-unbooked",
+      "business_rule": "BR-3",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/yard/gate/release",
+      "conditions": [
+        {
+          "field": "booking_match",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "effect": "quarantine",
+      "description": "Unbooked gate release attempts quarantine the requester."
+    },
+    {
+      "id": "pol-br4-allow-gateway-wildcard",
+      "business_rule": "BR-4",
+      "origin": "business-rule",
+      "subject": "edge-gateway",
+      "action": "subscribe",
+      "resource": "*",
+      "conditions": [
+        {
+          "field": "filter_has_wildcard",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "effect": "allow",
+      "description": "The gateway alone may hold wildcard subscribes."
+    },
+    {
+      "id": "pol-br4-quarantine-wildcard",
+      "business_rule": "BR-4",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "subscribe",
+      "resource": "*",
+      "conditions": [
+        {
+          "field": "filter_has_wildcard",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "edge-gateway"
+        }
+      ],
+      "effect": "quarantine",
+      "description": "Non-gateway wildcard subscribes (recon) quarantine the requester."
+    },
+    {
+      "id": "pol-br5-flag-implausible-reefer",
+      "business_rule": "BR-5",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/yard/reefer/*/temperature",
+      "conditions": [
+        {
+          "field": "delta_c_per_min",
+          "op": "gt",
+          "value": 10
+        }
+      ],
+      "effect": "flag",
+      "description": "Reefer temperature jumps over 10C/min are implausible: flagged, never acted on."
+    },
+    {
+      "id": "pol-br6-deny-bypass",
+      "business_rule": "BR-6",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "write",
+      "resource": "plc.*",
+      "conditions": [
+        {
+          "field": "via_gateway",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "effect": "deny",
+      "description": "Direct-to-PLC writes bypassing the gateway are denied and audit-flagged as an anomaly."
+    },
+    {
+      "id": "pol-br8-throttle-flood",
+      "business_rule": "BR-8",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "*",
+      "resource": "*",
+      "conditions": [
+        {
+          "field": "subject_kind",
+          "op": "eq",
+          "value": "agent"
+        },
+        {
+          "field": "rate_per_min",
+          "op": "gt",
+          "value": 30
+        },
+        {
+          "field": "repeat",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "effect": "flag",
+      "description": "First rate-cap breach throttles the agent (flag + audit)."
+    },
+    {
+      "id": "pol-br8-quarantine-repeat",
+      "business_rule": "BR-8",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "*",
+      "resource": "*",
+      "conditions": [
+        {
+          "field": "subject_kind",
+          "op": "eq",
+          "value": "agent"
+        },
+        {
+          "field": "rate_per_min",
+          "op": "gt",
+          "value": 30
+        },
+        {
+          "field": "repeat",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "effect": "quarantine",
+      "description": "Repeat rate-cap breach quarantines the agent."
+    },
+    {
+      "id": "pol-br9-deny-malformed",
+      "business_rule": "BR-9",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "write",
+      "resource": "plc.*",
+      "conditions": [
+        {
+          "field": "wellformed",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "effect": "deny",
+      "description": "Malformed PLC writes are rejected by condition check, never passed to the device."
+    },
+    {
+      "id": "pol-br9-deny-below-range",
+      "business_rule": "BR-9",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "write",
+      "resource": "plc.*",
+      "conditions": [
+        {
+          "field": "value",
+          "op": "lt",
+          "value": 0
+        }
+      ],
+      "effect": "deny",
+      "description": "PLC writes below 0 are rejected by condition check."
+    },
+    {
+      "id": "pol-br9-deny-above-range",
+      "business_rule": "BR-9",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "write",
+      "resource": "plc.*",
+      "conditions": [
+        {
+          "field": "value",
+          "op": "gt",
+          "value": 1500
+        }
+      ],
+      "effect": "deny",
+      "description": "PLC writes above 1500 RPM are rejected by condition check."
+    },
+    {
+      "id": "pol-br7-deny-unknown-revoked",
+      "business_rule": "BR-7",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "*",
+      "resource": "*",
+      "conditions": [
+        {
+          "field": "identity_status",
+          "op": "in",
+          "value": [
+            "unknown",
+            "revoked",
+            "expired"
+          ]
+        }
+      ],
+      "effect": "deny",
+      "description": "Unknown, revoked, or expired identities are denied immediately with no re-evaluation."
+    },
+    {
+      "id": "infra-allow-pub-sensor-pressure-line1-site-line1-sensors-pressure",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "sensor-pressure-line1",
+      "action": "publish",
+      "resource": "topic:site/line1/sensors/pressure",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Graph-derived: sensor-pressure-line1 owns telemetry topic site/line1/sensors/pressure."
+    },
+    {
+      "id": "infra-allow-pub-sensor-temp-line1-site-line1-sensors-temperature",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "sensor-temp-line1",
+      "action": "publish",
+      "resource": "topic:site/line1/sensors/temperature",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Graph-derived: sensor-temp-line1 owns telemetry topic site/line1/sensors/temperature."
+    },
+    {
+      "id": "infra-allow-pub-sensor-vibration-line1-site-line1-sensors-vibration",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "sensor-vibration-line1",
+      "action": "publish",
+      "resource": "topic:site/line1/sensors/vibration",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Graph-derived: sensor-vibration-line1 owns telemetry topic site/line1/sensors/vibration."
+    },
+    {
+      "id": "infra-allow-pub-yard-container-moves-site-yard-container-move",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "yard-container-moves",
+      "action": "publish",
+      "resource": "topic:site/yard/container/move",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Graph-derived: yard-container-moves owns telemetry topic site/yard/container/move."
+    },
+    {
+      "id": "infra-allow-pub-yard-equipment-hostler-1-site-yard-equipment-id-status",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "yard-equipment-hostler-1",
+      "action": "publish",
+      "resource": "topic:site/yard/equipment/*/status",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Graph-derived: yard-equipment-hostler-1 owns telemetry topic site/yard/equipment/<id>/status."
+    },
+    {
+      "id": "infra-allow-pub-yard-gate-site-yard-gate-event",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "yard-gate",
+      "action": "publish",
+      "resource": "topic:site/yard/gate/event",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Graph-derived: yard-gate owns telemetry topic site/yard/gate/event."
+    },
+    {
+      "id": "infra-allow-pub-reefer-container-1-site-yard-reefer-container-id-temperature",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "reefer-container-1",
+      "action": "publish",
+      "resource": "topic:site/yard/reefer/*/temperature",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Graph-derived: reefer-container-1 owns telemetry topic site/yard/reefer/<container_id>/temperature."
+    },
+    {
+      "id": "infra-allow-operator-sub-site-line1-sensors-temperature",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "operator-agent",
+      "action": "subscribe",
+      "resource": "topic:site/line1/sensors/temperature",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Sim-contract: operator subscribes to site/line1/sensors/temperature."
+    },
+    {
+      "id": "infra-allow-operator-sub-site-line1-sensors-vibration",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "operator-agent",
+      "action": "subscribe",
+      "resource": "topic:site/line1/sensors/vibration",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Sim-contract: operator subscribes to site/line1/sensors/vibration."
+    },
+    {
+      "id": "infra-allow-operator-sub-site-yard-gate-event",
+      "business_rule": null,
+      "origin": "infrastructure",
+      "subject": "operator-agent",
+      "action": "subscribe",
+      "resource": "topic:site/yard/gate/event",
+      "conditions": [],
+      "effect": "allow",
+      "description": "Sim-contract: operator subscribes to site/yard/gate/event."
+    },
+    {
+      "id": "pol-br7-default-deny",
+      "business_rule": "BR-7",
+      "origin": "business-rule",
+      "subject": "*",
+      "action": "*",
+      "resource": "*",
+      "conditions": [],
+      "effect": "deny",
+      "description": "Catch-all: any unmatched action is denied."
+    }
+  ],
+  "proposed_rules": [
+    {
+      "id": "defense-quarantine-spoofed-container-move",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/yard/container/move",
+      "conditions": [
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "yard-container-moves"
+        }
+      ],
+      "effect": "quarantine",
+      "description": "Only yard-container-moves may publish container moves, spoofed moves quarantine the requester."
+    },
+    {
+      "id": "defense-quarantine-spoofed-equipment-status",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/yard/equipment/*/status",
+      "conditions": [
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "yard-equipment-hostler-1"
+        }
+      ],
+      "effect": "quarantine",
+      "description": "Only yard-equipment-hostler-1 may publish equipment status, spoofed status quarantines the requester."
+    },
+    {
+      "id": "defense-deny-spoofed-gate-event",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/yard/gate/event",
+      "conditions": [
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "yard-gate"
+        }
+      ],
+      "effect": "deny",
+      "description": "Only yard-gate may publish gate events, spoofed events are denied."
+    },
+    {
+      "id": "defense-deny-spoofed-pressure-telemetry",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/line1/sensors/pressure",
+      "conditions": [
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "sensor-pressure-line1"
+        }
+      ],
+      "effect": "deny",
+      "description": "Only sensor-pressure-line1 may publish pressure telemetry, spoofs are denied."
+    },
+    {
+      "id": "defense-deny-spoofed-temperature-telemetry",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/line1/sensors/temperature",
+      "conditions": [
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "sensor-temp-line1"
+        }
+      ],
+      "effect": "deny",
+      "description": "Only sensor-temp-line1 may publish temperature telemetry, spoofs are denied."
+    },
+    {
+      "id": "defense-deny-spoofed-vibration-telemetry",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/line1/sensors/vibration",
+      "conditions": [
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "sensor-vibration-line1"
+        }
+      ],
+      "effect": "deny",
+      "description": "Only sensor-vibration-line1 may publish vibration telemetry, spoofs are denied."
+    },
+    {
+      "id": "defense-quarantine-spoofed-reefer-temp",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/yard/reefer/*/temperature",
+      "conditions": [
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "reefer-container-1"
+        }
+      ],
+      "effect": "quarantine",
+      "description": "Only reefer-container-1 may publish reefer temperature, spoofs quarantine the requester."
+    },
+    {
+      "id": "defense-deny-camera-exfiltration",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "camera-line1",
+      "action": "stream",
+      "resource": "camera.frames",
+      "conditions": [
+        {
+          "field": "destination",
+          "op": "ne",
+          "value": "edge-gateway"
+        }
+      ],
+      "effect": "deny",
+      "description": "Camera streams to any destination other than the edge-gateway are denied as exfiltration."
+    },
+    {
+      "id": "defense-deny-rogue-camera-stream",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "rogue-agent",
+      "action": "stream",
+      "resource": "camera.frames",
+      "conditions": [],
+      "effect": "deny",
+      "description": "Rogue agents may never stream camera frames."
+    },
+    {
+      "id": "defense-deny-nonoperator-plc-write",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "*",
+      "action": "write",
+      "resource": "plc.*",
+      "conditions": [
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "operator-agent"
+        }
+      ],
+      "effect": "deny",
+      "description": "Only the operator-agent may write PLC registers, all other writers are denied."
+    },
+    {
+      "id": "defense-quarantine-nonoperator-gate-release",
+      "business_rule": null,
+      "origin": "spark-drafted",
+      "subject": "*",
+      "action": "publish",
+      "resource": "topic:site/yard/gate/release",
+      "conditions": [
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "operator-agent"
+        },
+        {
+          "field": "subject",
+          "op": "ne",
+          "value": "edge-gateway"
+        }
+      ],
+      "effect": "quarantine",
+      "description": "Only the operator-agent may publish gate releases, other publishers quarantine even with booking match."
+    }
+  ],
+  "semantics": {
+    "evaluation": "unknown-or-revoked short-circuits to deny; then deny/quarantine/flag before allow (deny-override); first match in file order wins within each class",
+    "default": "deny (pol-br7-default-deny catch-all, last rule)",
+    "subject_match": "exact graph node id or '*'",
+    "resource_match": "fnmatch glob: rule resource is the pattern, action resource the string",
+    "conditions": "conjunction; empty matches; numeric ops on non-numeric values are false",
+    "gateway_relay": "post-decision mechanism, not re-evaluated"
+  },
+  "vocabulary": {
+    "actions": [
+      "write",
+      "publish",
+      "subscribe",
+      "stream",
+      "connect",
+      "*"
+    ],
+    "effects": [
+      "allow",
+      "deny",
+      "quarantine",
+      "flag"
+    ],
+    "condition_fields": [
+      "value",
+      "wellformed",
+      "via_gateway",
+      "booking_match",
+      "identity_status",
+      "subject",
+      "subject_kind",
+      "rate_per_min",
+      "repeat",
+      "delta_c_per_min",
+      "destination",
+      "filter",
+      "filter_has_wildcard"
+    ],
+    "ops": [
+      "eq",
+      "ne",
+      "lt",
+      "lte",
+      "gt",
+      "gte",
+      "in",
+      "not_in"
+    ]
+  },
+  "business_rules": {
+    "BR-1": "Only the maintenance/operator agent may write PLC registers, and setpoints must stay within the safe range.",
+    "BR-2": "Cameras stream to the local gateway only, never to the internet.",
+    "BR-3": "Gate release requires matching container + truck + booking.",
+    "BR-4": "No agent may subscribe to the wildcard topic #.",
+    "BR-5": "Reefer temperature changes greater than 10\u00b0C in one minute are implausible and must be flagged, not acted on.",
+    "BR-6": "Any traffic to the PLC that bypasses the gateway is denied and flagged.",
+    "BR-7": "Unknown or revoked identities are denied by default, with no re-evaluation.",
+    "BR-8": "Per-agent rate cap: any agent exceeding its publish/action rate is throttled, then quarantined on repeat.",
+    "BR-9": "Malformed or out-of-range writes are rejected by condition check, not passed to the device."
+  },
+  "meta": {
+    "generated_at": "2026-10-28T19:13:42.612260+00:00",
+    "generator": "sentinel-policy/1",
+    "model": "muse-spark-1.3",
+    "graph_sha256": "a7b934959a6f204428bb1ed5da9b729263e1ecbec2add78c87846d8ef51ac78c",
+    "rules_sha256": "2eeec37d599d563873b4353d34dcd408300f4d7dde6d722ebc87611381da8a41",
+    "enrichment": {
+      "status": "spark",
+      "model": "muse-spark-1.3",
+      "dropped_draft_rules": []
+    }
+  }
+}
