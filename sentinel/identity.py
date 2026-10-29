@@ -5,6 +5,7 @@ import time
 import uuid
 
 _tokens = {}
+_revoked = {}
 
 
 def issue(role, issuer, scope, ttl_seconds=3600):
@@ -20,24 +21,55 @@ def issue(role, issuer, scope, ttl_seconds=3600):
     return json.dumps(payload)
 
 
+def _coerce(token):
+    """Return the claimed payload dict, or None if unparseable."""
+    if isinstance(token, dict):
+        return token
+    if isinstance(token, str):
+        try:
+            payload = json.loads(token)
+        except ValueError:
+            return None
+        return payload if isinstance(payload, dict) else None
+    return None
+
+
+def verify_status(token):
+    """Return (payload, status) with status valid|unknown|revoked|expired.
+
+    The payload is the stored credential for valid tokens, the claimed
+    payload for revoked/expired ones (kept for audit), else None.
+    """
+    now = time.time()
+    claimed = _coerce(token)
+    token_id = claimed.get("id") if claimed else None
+    if token_id in _revoked:
+        return _revoked[token_id], "revoked"
+    stored = _tokens.get(token_id) if token_id is not None else None
+    if stored is None or stored != claimed:
+        return None, "unknown"
+    if stored.get("expiry", 0) < now:
+        return stored, "expired"
+    return stored, "valid"
+
+
 def verify(token):
     """Return the token payload dict if valid, else None."""
-    try:
-        payload = json.loads(token)
-    except (TypeError, ValueError):
-        return None
-    stored = _tokens.get(payload.get("id"))
-    if stored is None or stored != payload:
-        return None
-    if payload.get("expiry", 0) < time.time():
-        return None
-    return payload
+    payload, status = verify_status(token)
+    return payload if status == "valid" else None
 
 
 def revoke(token):
-    """Revoke a token (JSON string or id). Returns True if revoked."""
-    try:
-        token_id = json.loads(token).get("id") if isinstance(token, str) and token.strip().startswith("{") else token
-    except ValueError:
+    """Revoke a token (JSON string, dict, or id). Returns True if revoked."""
+    claimed = _coerce(token)
+    if claimed is not None:
+        token_id = claimed.get("id")
+    elif isinstance(token, str):
+        token_id = token
+    else:
         return False
-    return _tokens.pop(token_id, None) is not None
+    payload = _tokens.pop(token_id, None)
+    if payload is None:
+        return False
+    _revoked[token_id] = payload
+    return True
