@@ -7,12 +7,12 @@ enforceable policy, and blocks, quarantines, and revokes rogue agents live.
 
 > Traditional firewalls inspect packets; Sentinel inspects intent.
 
-Status: Day 6 — enforcement loop complete (`sentinel/enforce.py`:
-deterministic `decide()` over `data/policy.json` — deny-override,
-BR-7 short-circuit, rate/plausibility tracking, quarantine+revoke with
-in-memory tightening, JSONL audit; `python3 -m sentinel.enforce`
-replays the demo attacks offline). Build order and acceptance criteria
-live in [sentinel-build-spec.md](sentinel-build-spec.md).
+Status: Day 8 — demo console complete (`console/app.py`: Streamlit
+dashboard with Overview, Environment, Policies, Agents & Identities,
+Red team, Threats, and Audit log tabs; Red team buttons fire all seven
+spec attacks plus the legit baseline through the Layer 4 gateway live,
+fully offline from the cached artifacts). Build order and acceptance
+criteria live in [sentinel-build-spec.md](sentinel-build-spec.md).
 
 ## Layout
 
@@ -42,3 +42,14 @@ docker exec sentinel-mosquitto mosquitto_sub -t 'site/#' -v
 
 API calls (Meta Model API via `META_API_KEY`) are needed only to regenerate
 the cached artifacts in `data/` — never to run the sim or, later, the demo.
+
+## Run the console
+
+```bash
+pip install -r requirements.txt
+streamlit run console/app.py   # open http://localhost:8501 in a browser
+```
+
+The console runs fully offline from `data/graph.json`, `data/threats.json`,
+and `data/policy.json` — no API key needed. Fire attacks from the Red team
+tab and watch them get blocked in the live feed and audit log.
