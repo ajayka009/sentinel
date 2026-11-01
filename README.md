@@ -118,6 +118,40 @@ see `.env.example`):
 - `sentinel/analyst.py` (Wonder) → `data/threats.json`
 - `sentinel/policy.py` (Spark 1.3) → `data/policy.json`
 
+## Edge compute for the Glimmer operator (GCP spot VM)
+
+The laptop can't hold Glimmer 30B (~18GB), so P2-12 runs on one cloud VM
+as the "edge node": the whole stack (broker, sim, operator, console,
+inference) runs there over localhost, so local-inference story stays
+intact — no API calls, no network dependency at demo time. No GPU needed;
+CPU inference keeps up with the ~10s agent cycle.
+
+```bash
+# 1. One-time: commit + push this repo, then create the VM (spot, ~$0.10/hr
+#    under the $300 trial credit — a few dollars total; STOP keeps the disk
+#    if the spot instance is preempted).
+gcloud compute instances create sentinel-edge --zone=us-central1-a \
+  --machine-type=e2-highmem-8 --provisioning-model=SPOT \
+  --instance-termination-action=STOP --boot-disk-size=80GB \
+  --boot-disk-type=pd-balanced --image-family=debian-12 \
+  --image-project=debian-cloud
+
+# 2. Copy + run the setup script on the VM (installs mosquitto, Ollama,
+#    pulls muse-glimmer:30b, clones the repo, runs the hardware gate).
+gcloud compute scp scripts/edge_vm_setup.sh sentinel-edge:~/ \
+  --zone=us-central1-a
+gcloud compute ssh sentinel-edge --zone=us-central1-a
+chmod +x ~/edge_vm_setup.sh && ~/edge_vm_setup.sh   # ~18GB pull takes a while
+
+# 3. On the VM, one terminal each (see script output for the full order):
+python3 sim/glimmer_operator.py --backend ollama --cycles 12  # acceptance run
+streamlit run console/app.py --server.address 127.0.0.1
+
+# 4. On the laptop, view the console through a tunnel (no firewall rule):
+gcloud compute ssh sentinel-edge --zone=us-central1-a -- -L 8501:localhost:8501
+# open http://localhost:8501
+```
+
 ## Models used
 
 | Model | ID | Use |
