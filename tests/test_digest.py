@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from sentinel import digest
+from sentinel import digest, models  # noqa: F401 — ensures sentinel.models exists for mock.patch on Python < 3.12
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = REPO_ROOT / "data" / "registry.yaml"

@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 from console import app
-from sentinel import enforce, identity
+from sentinel import enforce, identity, models  # noqa: F401 — ensures sentinel.models exists for mock.patch on Python < 3.12
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 

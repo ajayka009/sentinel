@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from sentinel import analyst
+from sentinel import analyst, models  # noqa: F401 — ensures sentinel.models exists for mock.patch on Python < 3.12
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GRAPH_PATH = REPO_ROOT / "data" / "graph.json"
