@@ -1,0 +1,10 @@
+# Sentinel console theme — dark SOC/ops console. System fonts only so the
+# demo stays fully offline (no webfont fetch). Accent is a restrained
+# teal-green; red/amber/green are reserved for severity semantics.
+[theme]
+base = "dark"
+primaryColor = "#2dd4a8"
+backgroundColor = "#0c1218"
+secondaryBackgroundColor = "#111922"
+textColor = "#e6edf1"
+font = "sans serif"
