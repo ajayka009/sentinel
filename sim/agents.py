@@ -22,8 +22,44 @@ from pathlib import Path
 # Allow `python3 sim/agents.py` script runs to import sentinel.*.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import paho.mqtt.client as mqtt
-from pymodbus.client import ModbusTcpClient
+try:
+    import paho.mqtt.client as mqtt
+    from pymodbus.client import ModbusTcpClient
+except ImportError:  # offline / stdlib-only runs: constructing an agent
+    # works (tests pin topics and gate logic), but any real wire I/O
+    # raises with install instructions instead of failing at import.
+    class _OfflineMqttClient:
+        def __init__(self, *args, **kwargs):
+            self.on_message = None
+
+        def __getattr__(self, name):
+            if name.startswith("__"):
+                raise AttributeError(name)
+            raise RuntimeError(
+                "The 'paho-mqtt' package is not installed. "
+                "Install it with: pip install -r requirements.txt")
+
+    class _OfflineMqttModule:
+        class CallbackAPIVersion:
+            VERSION2 = "v2"
+
+        Client = _OfflineMqttClient
+
+    mqtt = _OfflineMqttModule()
+
+    class ModbusTcpClient:  # noqa: F811 — offline fallback
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+        def __getattr__(self, name):
+            if name.startswith("__"):
+                raise AttributeError(name)
+            raise RuntimeError(
+                "The 'pymodbus' package is not installed. "
+                "Install it with: pip install -r requirements.txt")
 
 from sentinel import identity
 

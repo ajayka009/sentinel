@@ -14,8 +14,6 @@ import json
 import random
 import time
 
-import paho.mqtt.client as mqtt
-
 INTERVAL_SECONDS = 2.0
 
 SENSORS = {
@@ -31,6 +29,8 @@ def main() -> None:
     parser.add_argument("--mqtt-port", type=int, default=1883)
     parser.add_argument("--interval", type=float, default=INTERVAL_SECONDS)
     args = parser.parse_args()
+
+    import paho.mqtt.client as mqtt  # deferred: tests only need SENSORS
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.connect(args.mqtt_host, args.mqtt_port)

@@ -16,8 +16,6 @@ import json
 import random
 import time
 
-import paho.mqtt.client as mqtt
-
 TOPIC_REEFER_TEMPERATURE = "site/yard/reefer/{reefer_id}/temperature"
 TOPIC_GATE_EVENT = "site/yard/gate/event"
 TOPIC_EQUIPMENT_STATUS = "site/yard/equipment/{equipment_id}/status"
@@ -56,6 +54,8 @@ def main() -> None:
     parser.add_argument("--drop", type=float, default=0.1,
                         help="probability of dropping each message (0..1)")
     args = parser.parse_args()
+
+    import paho.mqtt.client as mqtt  # deferred: tests only need constants
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.connect(args.mqtt_host, args.mqtt_port)

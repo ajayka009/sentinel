@@ -3,15 +3,30 @@
 import os
 import time
 
-from dotenv import load_dotenv
-from openai import OpenAI, RateLimitError
+try:
+    from dotenv import load_dotenv
+except ImportError:  # optional: only loads .env files for local runs
+    def load_dotenv(*args, **kwargs):
+        return False
+
+try:
+    from openai import OpenAI, RateLimitError
+except ImportError:  # optional until chat() is actually called
+    OpenAI = None
+
+    class RateLimitError(Exception):
+        pass
 
 load_dotenv()
 
 BASE_URL = "https://api.meta.ai/v1"
 
 
-def _client() -> OpenAI:
+def _client():
+    if OpenAI is None:
+        raise RuntimeError(
+            "The 'openai' package is not installed. "
+            "Install it with: pip install -r requirements.txt")
     return OpenAI(base_url=BASE_URL, api_key=os.getenv("META_API_KEY"))
 
 
