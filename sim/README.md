@@ -7,6 +7,7 @@
 | `sensors.py`| Publishes temp/vibration/pressure to `site/line1/sensors/*` every 2s (drift + noise). |
 | `yard.py`   | Publishes reefers/gate/equipment/moves to `site/yard/*`. `--jitter`/`--drop` simulate a constrained link. |
 | `agents.py` | `OperatorAgent`: reads its sensor/gate topics (explicit subscribes, no wildcard), issues in-policy PLC writes + booking-matched gate releases. Own connection, own credential. |
+| `glimmer_operator.py` | Glimmer-driven operator (P2-12): local Muse Glimmer 30B decides one action per ~10s cycle through the unchanged gateway; own connection, own credential. `--backend ollama\|llama.cpp\|stub`, `--hardware-gate` first. |
 | `rogue.py`  | `RogueAgent`: separate process running the scripted attack sequence (off by default). Own connection, own credential; shares nothing with `agents.py`. |
 
 Run (one terminal each):

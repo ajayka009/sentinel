@@ -30,9 +30,10 @@ Site A — Plant line                      ┌───────────�
   camera frames                          │  2. Analyst → threats.json │
 Site B — Truck yard (constrained link)   │  3. Policy compiler →      │
   reefers / gate / equipment / moves     │     policy.json (26 rules) │
-Agents: operator (legit) / rogue (evil)  │  4. Enforcement loop:      │
-        │                                │     allow/deny/quarantine  │
-        ▼                                │  5. Console (this dashboard)│
+Agents: operator (scripted or Glimmer-driven) │  4. Enforcement loop:      │
+        rogue (evil)                       │     allow/deny/quarantine  │
+        │                                │  5. Console (this dashboard)│
+        ▼                                │                            │
 ┌───────────────────────────────┐        └──────────────┬─────────────┘
 │ Adjacent network firewall     │  ◄── assumed present, below Sentinel
 │ (packets: IP/ports/TLS) —     │      (out of scope; see Scope)
@@ -55,9 +56,12 @@ pretty.
 ## Layout
 
 - `sim/` — two-site simulator (plant line + truck yard), MQTT/Modbus, agents
+  (`agents.py` scripted operator, `glimmer_operator.py` Glimmer-driven
+  operator, `rogue.py` rogue)
 - `sentinel/` — digest, analyst, policy compiler, enforcement, identity, models
 - `console/` — Streamlit demo console (Layer 5)
 - `data/` — registry, business rules, generated graph/threats/policy JSON
+- `models/` — Glimmer weights (gitignored, never committed)
 - `demo/` — demo narration (`script.md`) + submission draft (`submission.md`)
 - `tests/` — contract tests (`python3 -m unittest discover -s tests`)
 
@@ -77,6 +81,37 @@ Subscribe to everything:
 ```bash
 docker exec sentinel-mosquitto mosquitto_sub -t 'site/#' -v
 ```
+
+## Glimmer operator agent (P2-12, governed side)
+
+`sim/glimmer_operator.py` runs the operator role with a local Muse Glimmer
+30B model instead of a script: every ~10s it perceives sensor/gate state,
+asks the model for ONE action (setpoint, gate release, or no-op), and
+submits it to the unchanged Layer 4 gateway — which allows, denies, or
+quarantines it like any other agent attempt. Denied attempts are logged
+and never touch the wire. The model decides what is *attempted*; code-only
+`decide()` decides what is *allowed*. `sim/agents.py` stays untouched as
+the scripted fallback.
+
+With the sim running (above):
+
+```bash
+python3 sim/glimmer_operator.py --hardware-gate       # Step 0: can this
+                                                      # machine hold 30B?
+python3 sim/glimmer_operator.py --backend stub --cycles 10 --skip-gate  # loop
+                                                      # check, no weights
+                                                      # (--skip-gate: stub
+                                                      # needs no weights)
+ollama pull muse-glimmer:30b                          # once, ~18GB local
+python3 sim/glimmer_operator.py --backend ollama --cycles 0 # live operator
+```
+
+Backends are all local (no API calls, no network beyond localhost):
+`ollama` (default tag `muse-glimmer:30b`), `llama.cpp` (GGUF in gitignored
+`models/`), or `stub` (deterministic, for tests). Every cycle appends one
+JSONL line to `data/glimmer_operator.jsonl` (gitignored, console-readable).
+If the hardware gate FAILs, local Glimmer is not viable on that machine —
+the scripted operator remains the demo (spec fallback).
 
 ## Run the console
 
@@ -160,6 +195,7 @@ gcloud compute ssh sentinel-edge --zone=us-central1-a -- -L 8501:localhost:8501
 | Muse Wonder | `muse-wonder-1.0` | Attack-surface analysis (build time) |
 | SAM 3.1 | `sam-3.1` | Camera-frame segmentation (build time) |
 | Muse Image | `muse-image-1.0` | Synthetic camera frames |
+| Muse Glimmer 30B | `muse-glimmer:30b` (local, self-hosted, Apache 2.0) | Governed operator agent (P2-12, edge node) |
 
 Runtime enforcement is deterministic code — no model calls in the loop.
 
