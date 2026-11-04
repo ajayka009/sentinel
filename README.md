@@ -29,7 +29,7 @@ Site A — Plant line                      ┌───────────�
   sensors (MQTT site/line1/...)          │  1. Digest → graph.json    │
   camera frames                          │  2. Analyst → threats.json │
 Site B — Truck yard (constrained link)   │  3. Policy compiler →      │
-  reefers / gate / equipment / moves     │     policy.json (26 rules) │
+  reefers / gate / equipment / moves     │     policy.json (16 rules) │
 Agents: operator (scripted or Glimmer-driven) │  4. Enforcement loop:      │
         rogue (evil)                       │     allow/deny/quarantine  │
         │                                │  5. Console (this dashboard)│

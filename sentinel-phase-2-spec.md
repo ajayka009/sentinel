@@ -16,9 +16,8 @@ for Phase 2 work, and the Phase 1 spec wins for everything already built.
   P2-12 is built BEFORE the video, so the video shows the enhanced
   product. Everything else in Phase 2 waits until Phase 1 is
   submittable, and items after P2-4 are post-submission / finals polish.
-- Item numbers (P2-1…P2-12) are stable from `phase-2-improvements.md`
-  (the backlog). Build order differs from numeric order and is given
-  explicitly below — do not renumber.
+- Item numbers (P2-1…P2-12) are stable. Build order differs from
+  numeric order and is given explicitly below — do not renumber.
 - Stack: same as Phase 1 (Python, Streamlit console, Mosquitto/MQTT,
   Modbus/TCP), plus local Glimmer inference for P2-12/P2-6 only. No new
   cloud dependencies. No paid tiers.

@@ -14,11 +14,11 @@ enforcement, policy, revocation, or audit. The scripted sim/agents.py is
 untouched and remains the fallback demo.
 
 Backends (all local, no API calls, no network beyond localhost):
-  ollama            — `muse-glimmer:30b` pulled into the local Ollama
+  ollama (default)  — `muse-glimmer:30b` pulled into the local Ollama
       daemon (official Ollama build, ~18GB). Easiest path: install
       Ollama, `ollama pull muse-glimmer:30b`, run with
       --backend ollama. Inference stays on localhost.
-  llama.cpp (default) — GGUF weights in the gitignored models/ dir, e.g.
+  llama.cpp — GGUF weights in the gitignored models/ dir, e.g.
       models/glimmer-30b-q4.gguf (official:
       meta-models/Muse-Glimmer-30B-GGUF, file
       Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf, Apache 2.0).
@@ -138,7 +138,7 @@ def hardware_gate(weights_path=None):
 # ---------------------------------------------------------------------------
 
 class LlamaCppBackend:
-    """llama.cpp inference over a local GGUF file (default backend)."""
+    """llama.cpp inference over a local GGUF file."""
 
     name = "llama.cpp"
 
@@ -439,7 +439,7 @@ class GlimmerOperator:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Glimmer-driven operator agent (P2-12, governed side).")
-    parser.add_argument("--backend", default="llama.cpp",
+    parser.add_argument("--backend", default="ollama",
                         choices=("llama.cpp", "ollama", "stub"))
     parser.add_argument("--model", default=None,
                         help="weights path (llama.cpp) or local tag "

@@ -1,8 +1,10 @@
-# Demo script (about 3½ minutes)
+# Demo script (3 minutes)
 
 The console IS the demo: every beat below is a click in the Red team tab
 plus narration. Video follows this script; visitors can self-guide with the
 "Try it yourself" steps at the end.
+
+Beats sum to 180s with Beat 6, 150s without (Beat 6 is conditional).
 
 ## Staging (before recording)
 
@@ -19,75 +21,82 @@ plus narration. Video follows this script; visitors can self-guide with the
    ```
 2. Console: sidebar → **Reset demo** for a clean audit trail.
 3. Recording: capture the browser window at 1080p; narrate from the
-   SAY lines. Total target: under 3:30.
+   SAY lines. Total target: 180 seconds max.
 
-## Beat 0 — Calm (30s): the baseline
+## Beat 0 — Calm (15s): the baseline
 
 Screen: Overview tab. Counters at zero, system health green (or PLC/broker
 "down" if the sim isn't running — say so once and move on).
 
 > SAY: "This is Sentinel, an agent-aware firewall for edge and physical AI.
-> Two sites — a plant line and a remote truck yard — guarded by one gateway.
-> The operator agent is doing legitimate work."
+> Two sites — plant line and truck yard — one gateway."
 
 Click: Red team tab → **Operator setpoint 1200 (calm)**.
 
-> SAY: "An in-policy setpoint write: allowed, green, audited. That's our
-> baseline. Now the rogue agent attacks."
+> SAY: "In-policy setpoint: allowed, green, audited. Baseline set —
+> now the rogue attacks."
 
-## Beat 1 — Recon (30s): wildcard subscribe
+## Beat 1 — Recon (15s): wildcard subscribe
 
 Click: **Wildcard recon (# subscribe)**.
 
 Screen: live feed shows QUARANTINE + FLAG; Agents tab shows the rogue
 credential revoked.
 
-> SAY: "The rogue subscribes to hash — the MQTT wildcard — to see every
-> topic. Sentinel quarantines it on the spot under pol-br4, and revokes the
-> credential. Recon over."
+> SAY: "The rogue subscribes to hash, the MQTT wildcard. Sentinel
+> quarantines it under pol-br4 and revokes the credential. Recon over."
 
-## Beat 2 — Forged PLC write (45s): the flagship block
+## Beat 2 — Forged PLC write (35s): the flagship block
 
 Click: **Forged PLC write (3000 RPM)**.
 
 Screen: red DENY row; Policies tab → `pol-br9-deny-above-range`.
 
-> SAY: "Now the rogue forges a PLC setpoint write — 3000 RPM, double the
-> safe ceiling. Its packets are perfect; its intent is malicious. A packet
-> filter waves this through. Sentinel denies it — the rogue has no PLC-write
-> scope and the value is out of range — and the audit log records identity,
-> action, matched rule, and decision."
+> SAY: "The rogue forges a PLC write — 3000 RPM, double the safe ceiling.
+> Packets perfect, intent malicious: a packet filter waves it through.
+> Sentinel denies it — no PLC-write scope, out of range — and the audit
+> log records identity, action, rule, and decision."
 
-## Beat 3 — Spoofed reefer telemetry (45s)
+## Beat 3 — Spoofed reefer telemetry (35s)
 
 Click: **Spoofed reefer temp (+25C jump)**.
 
 Screen: feed shows the baseline allow then the spoof DENY + FLAG.
 
-> SAY: "Next: a fake reefer temperature, a 25-degree jump in one reading,
-> designed to trick the operator into ignoring a real warming trend. The
-> plausibility check fails — flagged, never acted on, publishing scope
-> revoked."
+> SAY: "A fake reefer reading, up 25 degrees in one jump, to mask a real
+> warming trend. The plausibility check fails — flagged, never acted on,
+> publishing scope revoked."
 
-## Beat 4 — Fake gate release (30s)
+## Beat 4 — Fake gate release (20s)
 
 Click: **Fake gate release (no booking)**.
 
-> SAY: "The rogue requests a container release with no matching booking.
-> Container plus truck plus booking must all match — they don't. Denied and
-> quarantined."
+> SAY: "A container release with no matching booking. Container, truck,
+> and booking must all match — they don't. Denied and quarantined."
 
-## Beat 5 — Aligned checks, rapid-fire (20s, no narration pauses)
+## Beat 5 — Aligned checks, rapid-fire (15s, no narration pauses)
 
 Click in quick succession: **Unknown-device connect** → **Publish flood
 (35 rapid)** → **Out-of-range setpoint**.
 
-> SAY: "And three free byproducts of the same enforcement path: an unknown
-> device denied by default, a publish flood throttled then quarantined, an
-> out-of-range write rejected by condition check."
+> SAY: "Three byproducts of the same path: unknown device denied by
+> default, publish flood throttled then quarantined, out-of-range
+> write rejected."
 
 (Backup: the **Fire full demo script** button runs every scenario at once
 if a live click misfires.)
+
+## Beat 6 — Glimmer operator (30s) — CONDITIONAL
+
+CONDITIONAL: record this beat ONLY if the Glimmer 12-cycle acceptance run
+(`python3 sim/glimmer_operator.py --backend ollama --cycles 12`) has
+passed on the edge node. Without this beat the script is 150s.
+
+Screen: terminal running the Glimmer operator beside the console live feed.
+
+> SAY: "The operator is now a local Glimmer model deciding one action
+> per cycle. It attempts; the unchanged gateway judges. In-policy:
+> allowed green. Overstep: blocked red. Models propose, code disposes."
 
 ## Close (15s)
 
