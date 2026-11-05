@@ -10,6 +10,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from sim import agents, glimmer_operator as glimmer
 from sentinel import enforce, identity
@@ -188,6 +189,57 @@ class SeparationTest(unittest.TestCase):
     def test_default_ollama_tag_is_official_glimmer(self):
         backend = glimmer.make_backend("ollama", None)
         self.assertEqual(backend.model, "muse-glimmer:30b")
+
+
+class OllamaResilienceTest(unittest.TestCase):
+    """One slow first load must not kill the operator (bounded retries)."""
+
+    def _canned(self, text='{"action": "noop"}'):
+        body = json.dumps({"response": text}).encode()
+        resp = mock.MagicMock()
+        resp.read.return_value = body
+        resp.__enter__.return_value = resp
+        resp.__exit__.return_value = False
+        return resp
+
+    def test_generate_retries_transient_timeout_then_succeeds(self):
+        backend = glimmer.OllamaBackend("muse-glimmer:30b")
+        with mock.patch("urllib.request.urlopen",
+                        side_effect=[TimeoutError("timed out"),
+                                     self._canned()]) as m_open, \
+                mock.patch("time.sleep") as m_sleep:
+            text = backend.generate('{"action": "noop"}')
+        self.assertEqual(text, '{"action": "noop"}')
+        self.assertEqual(m_open.call_count, 2)
+        self.assertEqual(m_sleep.call_count, 1)
+        sent = json.loads(m_open.call_args[0][0].data.decode())
+        self.assertEqual(sent["model"], "muse-glimmer:30b")
+        self.assertEqual(sent["keep_alive"], "30m")
+
+    def test_generate_raises_after_retries_exhausted(self):
+        backend = glimmer.OllamaBackend("muse-glimmer:30b", retries=1)
+        with mock.patch("urllib.request.urlopen",
+                        side_effect=TimeoutError("timed out")), \
+                mock.patch("time.sleep"):
+            with self.assertRaises(SystemExit):
+                backend.generate("prompt")
+
+    def test_generate_defaults_cover_slow_first_load(self):
+        backend = glimmer.OllamaBackend("m")
+        self.assertGreater(backend.timeout, 300)
+        self.assertGreaterEqual(backend.retries, 1)
+        self.assertEqual(backend.keep_alive, "30m")
+
+    def test_ensure_log_touch_creates_empty_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "sub" / "glimmer_operator.jsonl"
+            glimmer._ensure_log(log)
+            self.assertTrue(log.exists())
+            self.assertEqual(log.stat().st_size, 0)
+            log.write_text('{"a": 1}\n', encoding="utf-8")
+            glimmer._ensure_log(log)
+            self.assertEqual(log.read_text(encoding="utf-8"),
+                             '{"a": 1}\n')
 
 
 if __name__ == "__main__":

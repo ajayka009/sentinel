@@ -174,26 +174,40 @@ class OllamaBackend:
 
     name = "ollama"
 
-    def __init__(self, model, host="http://127.0.0.1:11434"):
+    def __init__(self, model, host="http://127.0.0.1:11434",
+                 timeout=900, retries=2, keep_alive="30m"):
         self.model = model
         self.host = host
+        # First call can take minutes on CPU while the model loads;
+        # a long per-call timeout plus bounded retries keeps one slow
+        # load from killing the whole operator. keep_alive holds the
+        # model resident between cycles.
+        self.timeout = timeout
+        self.retries = retries
+        self.keep_alive = keep_alive
 
     def generate(self, prompt):
         import urllib.request
         body = json.dumps({"model": self.model, "prompt": prompt,
-                           "stream": False,
+                           "stream": False, "keep_alive": self.keep_alive,
                            "options": {"temperature": 0.2}}).encode()
         req = urllib.request.Request(
             self.host + "/api/generate", data=body,
             headers={"Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(req, timeout=300) as resp:
-                payload = json.loads(resp.read().decode())
-        except Exception as exc:
-            raise SystemExit(
-                f"ollama daemon unreachable at {self.host} "
-                f"(is `ollama serve` running? model `{self.model}` "
-                f"pulled?): {exc}") from exc
+        payload = None
+        for attempt in range(self.retries + 1):
+            try:
+                with urllib.request.urlopen(req,
+                                            timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read().decode())
+                break
+            except Exception as exc:
+                if attempt >= self.retries:
+                    raise SystemExit(
+                        f"ollama daemon unreachable at {self.host} "
+                        f"(is `ollama serve` running? model `{self.model}` "
+                        f"pulled?): {exc}") from exc
+                time.sleep(5)
         text = payload.get("response", "")
         if not isinstance(text, str) or not text.strip():
             raise SystemExit(f"ollama model `{self.model}` returned no "
@@ -325,6 +339,19 @@ def evaluate(backend, state, gateway, credential):
     return decision, record
 
 
+def _ensure_log(log_path):
+    """Create the JSONL log file at startup if missing (touch only).
+
+    Appends nothing and truncates nothing, so a 12-cycle run still
+    yields exactly its own 12 lines — absence just stops being
+    ambiguous with zero completed cycles.
+    """
+    path = Path(log_path)
+    if not path.parent.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(exist_ok=True)
+
+
 def log_cycle(log_path, backend_name, state, decision, record):
     """Append one JSONL line; return the one-line human summary."""
     entry = {
@@ -415,6 +442,7 @@ class GlimmerOperator:
         print(f"glimmer-operator: backend={self.backend.name} "
               f"credential id={self.credential_id} "
               f"role={CREDENTIAL_ROLE}", flush=True)
+        _ensure_log(self.log_path)
         self.plc.connect()
         self.mqtt.connect(self.mqtt_host, self.mqtt_port)
         for topic in SUBSCRIBE_TOPICS:
@@ -446,6 +474,12 @@ def main() -> None:
                              "(ollama); ignored for stub")
     parser.add_argument("--cycles", type=int, default=0,
                         help="cycles to run (0 = forever)")
+    parser.add_argument("--ollama-timeout", type=float, default=900,
+                        help="seconds per ollama generate call (default 900: "
+                             "first call includes CPU model load)")
+    parser.add_argument("--ollama-retries", type=int, default=2,
+                        help="bounded retries of transient ollama timeouts "
+                             "before the operator exits (default 2)")
     parser.add_argument("--interval", type=float, default=CYCLE_SECONDS)
     parser.add_argument("--log", default=str(DEFAULT_LOG))
     parser.add_argument("--mqtt-host", default="127.0.0.1")
@@ -475,6 +509,9 @@ def main() -> None:
         raise SystemExit(2)
 
     backend = make_backend(args.backend, args.model)
+    if isinstance(backend, OllamaBackend):
+        backend.timeout = args.ollama_timeout
+        backend.retries = args.ollama_retries
     GlimmerOperator(backend, args.mqtt_host, args.mqtt_port,
                     args.plc_host, args.plc_port,
                     log_path=args.log).run(cycles=args.cycles,
